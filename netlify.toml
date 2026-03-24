@@ -1,0 +1,4 @@
+[build]
+  base = "dynogix/frontend"
+  command = "npm install && npm run build"
+  publish = "dynogix/frontend/dist"
