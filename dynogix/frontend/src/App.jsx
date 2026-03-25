@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from './store/useStore'
 import AppLayout from './components/layout/AppLayout'
 import AiChatPanel from './components/ai/AiChatPanel'
@@ -18,9 +19,26 @@ function ProtectedRoute({ children }) {
 }
 
 function AppShell({ children }) {
+  const location = useLocation()
+
+  const [enable3D, setEnable3D] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setEnable3D(true)
+    }, 1500) // delay load
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  const isLowDevice = window.innerWidth < 768
+
   return (
     <div style={{ position: 'relative' }}>
-<ThreeBackground intensity={0.2} />
+      {/* ✅ ONLY LOAD 3D ON DASHBOARD + DELAY + DEVICE CHECK */}
+      {location.pathname === '/dashboard' && enable3D && !isLowDevice && (
+        <ThreeBackground intensity={0.2} />
+      )}
 
       <div style={{ position: 'relative', zIndex: 10 }}>
         <AppLayout>{children}</AppLayout>
