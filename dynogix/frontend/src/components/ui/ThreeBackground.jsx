@@ -7,22 +7,32 @@ export default function ThreeBackground({ intensity = 0.4 }) {
   const starsRef = useRef(null)
   const orbsRef = useRef([])
 
-  const animate = useCallback((time) => {
+  // ✅ FPS LIMIT (30 FPS)
+  let lastTime = 0
+
+  const animate = useCallback((time = 0) => {
     rafRef.current = requestAnimationFrame(animate)
 
+    // limit FPS
+    if (time - lastTime < 1000 / 30) return
+    lastTime = time
+
     if (starsRef.current) {
-      starsRef.current.rotation.y += 0.0003
-      starsRef.current.rotation.x += 0.0002
+      starsRef.current.rotation.y += 0.0002
+      starsRef.current.rotation.x += 0.0001
     }
 
     orbsRef.current.forEach((orb, i) => {
-      orb.rotation.y += 0.01 * (i % 2 === 0 ? 1 : -1)
-      orb.rotation.x += 0.005
-      orb.position.y += Math.sin(time * 0.0005 + i) * 0.02
+      orb.rotation.y += 0.005 * (i % 2 === 0 ? 1 : -1)
+      orb.rotation.x += 0.002
+      orb.position.y += Math.sin(time * 0.0003 + i) * 0.01
     })
 
     if (mountRef.current?.renderer) {
-      mountRef.current.renderer.render(mountRef.current.scene, mountRef.current.camera)
+      mountRef.current.renderer.render(
+        mountRef.current.scene,
+        mountRef.current.camera
+      )
     }
   }, [])
 
@@ -30,92 +40,88 @@ export default function ThreeBackground({ intensity = 0.4 }) {
     const mount = mountRef.current
     if (!mount) return
 
-    // Scene setup
+    // Scene
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000)
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      2000
+    )
     camera.position.z = 80
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    // Renderer (OPTIMIZED)
+    const renderer = new THREE.WebGLRenderer({
+      antialias: false, // 🔥 reduce load
+      alpha: true,
+      powerPreference: 'low-power'
+    })
+
     renderer.setSize(window.innerWidth, window.innerHeight)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setPixelRatio(1) // 🔥 very important (was heavy before)
     renderer.setClearColor(0x000000, 0)
+
     mount.appendChild(renderer.domElement)
 
-    // Store refs
     mount.scene = scene
     mount.camera = camera
     mount.renderer = renderer
 
-    // Stars particles
-    const starsCount = 2000
+    // ⭐ REDUCE PARTICLES (IMPORTANT)
+    const starsCount = 800 // 🔥 was 2000 (heavy)
     const starPositions = new Float32Array(starsCount * 3)
     const starColors = new Float32Array(starsCount * 3)
-    const starSizes = new Float32Array(starsCount)
 
     for (let i = 0; i < starsCount; i++) {
       const i3 = i * 3
-      starPositions[i3] = (Math.random() - 0.5) * 3000
-      starPositions[i3 + 1] = (Math.random() - 0.5) * 3000
-      starPositions[i3 + 2] = (Math.random() - 0.5) * 3000
 
-      // Gold/violet/pink gradient
-      const colorMix = Math.sin(i * 0.1) * 0.5 + 0.5
-      const color = new THREE.Color().lerpColors(
-        new THREE.Color(0xF5C542), // gold
-        new THREE.Color(0xFF7EB6), // pink
-        colorMix
-      ).multiplyScalar(intensity)
+      starPositions[i3] = (Math.random() - 0.5) * 2000
+      starPositions[i3 + 1] = (Math.random() - 0.5) * 2000
+      starPositions[i3 + 2] = (Math.random() - 0.5) * 2000
+
+      const color = new THREE.Color(0xF5C542).multiplyScalar(intensity)
       starColors[i3] = color.r
       starColors[i3 + 1] = color.g
       starColors[i3 + 2] = color.b
-
-      starSizes[i] = Math.random() * 2 + 1
     }
 
     const starsGeometry = new THREE.BufferGeometry()
     starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3))
     starsGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3))
-    starsGeometry.setAttribute('size', new THREE.BufferAttribute(starSizes, 1))
 
-    const starsMaterial = new THREE.PointsMaterial({ 
-      size: 3, 
-      vertexColors: true, 
-      transparent: true, 
-      opacity: intensity * 0.8,
-      sizeAttenuation: true,
-      depthWrite: false 
+    const starsMaterial = new THREE.PointsMaterial({
+      size: 2,
+      vertexColors: true,
+      transparent: true,
+      opacity: intensity * 0.6,
+      depthWrite: false
     })
 
     const stars = new THREE.Points(starsGeometry, starsMaterial)
     starsRef.current = stars
     scene.add(stars)
 
-    // Floating gold orbs
-    const orbsGeometry = new THREE.SphereGeometry(2, 16, 16)
-    const orbsMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xF5C542, 
-      transparent: true, 
-      opacity: 0.15 * intensity,
-      wireframe: true 
+    // 🔥 REDUCE ORBS
+    const orbsGeometry = new THREE.SphereGeometry(2, 8, 8)
+    const orbsMaterial = new THREE.MeshBasicMaterial({
+      color: 0xF5C542,
+      wireframe: true,
+      opacity: 0.1 * intensity,
+      transparent: true
     })
 
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 5; i++) { // 🔥 was 12
       const orb = new THREE.Mesh(orbsGeometry, orbsMaterial)
       orb.position.set(
-        (Math.random() - 0.5) * 400,
-        (Math.random() - 0.5) * 400,
+        (Math.random() - 0.5) * 300,
+        (Math.random() - 0.5) * 300,
         (Math.random() - 0.5) * 200
       )
       scene.add(orb)
       orbsRef.current.push(orb)
     }
 
-    // Lighting for depth
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.3 * intensity)
-    scene.add(ambientLight)
-
-    // Resize handler
+    // Resize
     const handleResize = () => {
       const width = window.innerWidth
       const height = window.innerHeight
@@ -123,26 +129,27 @@ export default function ThreeBackground({ intensity = 0.4 }) {
       camera.updateProjectionMatrix()
       renderer.setSize(width, height)
     }
+
     window.addEventListener('resize', handleResize)
 
-    // Start animation
     animate(0)
 
     return () => {
       window.removeEventListener('resize', handleResize)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
 
-      // Cleanup
       if (starsRef.current) {
         scene.remove(starsRef.current)
         starsRef.current.geometry.dispose()
         starsRef.current.material.dispose()
       }
-      orbsRef.current.forEach(orb => {
+
+      orbsRef.current.forEach((orb) => {
         scene.remove(orb)
         orb.geometry.dispose()
         orb.material.dispose()
       })
+
       orbsRef.current = []
 
       if (mount.renderer) {
@@ -152,6 +159,18 @@ export default function ThreeBackground({ intensity = 0.4 }) {
     }
   }, [intensity, animate])
 
-  return <div ref={mountRef} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }} />
+  return (
+    <div
+      ref={mountRef}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+        pointerEvents: 'none'
+      }}
+    />
+  )
 }
-
